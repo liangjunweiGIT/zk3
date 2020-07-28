@@ -35,12 +35,10 @@ public class DynamicDataSource extends AbstractRoutingDataSource {
      * 防止正在更新数据的时候 执行数据库操作
      */
     private static void clear() {
-        LOCK.lock();
         if (DATA_SOURCE != null && DATA_SOURCE instanceof DruidDataSource) {
             ((DruidDataSource) DATA_SOURCE).close();
             DATA_SOURCE = null;
         }
-        LOCK.unlock();
     }
 
     /**
@@ -49,11 +47,13 @@ public class DynamicDataSource extends AbstractRoutingDataSource {
      * @param info
      */
     public static void flushDataSource(DataSourcePojo info) {
+        LOCK.lock();
         clear();
         DruidDataSource druidDataSource = new DruidDataSource();
         druidDataSource.setUrl(info.getUrl());
         druidDataSource.setUsername(info.getUserName());
         druidDataSource.setPassword(info.getPassWord());
         setDataSource(druidDataSource);
+        LOCK.unlock();
     }
 }
