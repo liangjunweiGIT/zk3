@@ -5,21 +5,13 @@ import com.sg.zk3.datasource.zk.DataSourcePojo;
 import org.springframework.jdbc.datasource.lookup.AbstractRoutingDataSource;
 
 import javax.sql.DataSource;
-import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * @author junwei.liang01@ucarinc.com
  * @date 2020/7/28 14:48
  */
 public class DynamicDataSource extends AbstractRoutingDataSource {
-    private static Lock LOCK = new ReentrantLock();
-
-    private static DataSource DATA_SOURCE;
-
-    private static void setDataSource(DataSource dataSource) {
-        DATA_SOURCE = dataSource;
-    }
+    private static volatile DataSource DATA_SOURCE;
 
     @Override
     protected Object determineCurrentLookupKey() {
@@ -32,7 +24,7 @@ public class DynamicDataSource extends AbstractRoutingDataSource {
     }
 
     /**
-     * 防止正在更新数据的时候 执行数据库操作
+     * 关闭old连接池
      */
     private static void clear() {
         if (DATA_SOURCE != null && DATA_SOURCE instanceof DruidDataSource) {
@@ -47,13 +39,14 @@ public class DynamicDataSource extends AbstractRoutingDataSource {
      * @param info
      */
     public static void flushDataSource(DataSourcePojo info) {
-        LOCK.lock();
-        clear();
-        DruidDataSource druidDataSource = new DruidDataSource();
-        druidDataSource.setUrl(info.getUrl());
-        druidDataSource.setUsername(info.getUserName());
-        druidDataSource.setPassword(info.getPassWord());
-        setDataSource(druidDataSource);
-        LOCK.unlock();
+        //防止正在更新数据的时候 执行数据库操作
+        synchronized (DynamicDataSource.class) {
+            clear();
+            DruidDataSource druidDataSource = new DruidDataSource();
+            druidDataSource.setUrl(info.getUrl());
+            druidDataSource.setUsername(info.getUserName());
+            druidDataSource.setPassword(info.getPassWord());
+            DATA_SOURCE = druidDataSource;
+        }
     }
 }
